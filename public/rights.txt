@@ -1,0 +1,5 @@
+NEON SWARM: SKYLINE SIEGE
+All visual assets are generated at runtime from Three.js primitives.
+All audio is synthesized at runtime with the Web Audio API.
+No third-party images, audio, models, fonts, or game-specific assets are included.
+
