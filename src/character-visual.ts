@@ -80,14 +80,14 @@ export const ENEMY_CHARACTER_DEFINITIONS=[
 ] as const;
 
 function toonGradient(){
-  const data=new Uint8Array([55,55,55,145,145,145,215,215,215,255,255,255]);
+  const data=new Uint8Array([92,92,98,158,158,166,218,218,224,255,255,255]);
   const texture=new THREE.DataTexture(data,4,1,THREE.RedFormat);
   texture.minFilter=THREE.NearestFilter;texture.magFilter=THREE.NearestFilter;texture.needsUpdate=true;
   return texture;
 }
 
 function toonMaterial(color:number,gradient:THREE.Texture,emissive=0){
-  return new THREE.MeshToonMaterial({color,gradientMap:gradient,emissive,emissiveIntensity:emissive?0.68:0});
+  return new THREE.MeshToonMaterial({color,gradientMap:gradient,emissive,emissiveIntensity:emissive?0.22:0});
 }
 
 export class ProceduralCharacterRenderer{
@@ -113,8 +113,9 @@ export class ProceduralCharacterRenderer{
   private readonly shadowDummy=new THREE.Object3D();
   private readonly trailDummy=new THREE.Object3D();
   private readonly outlineMatrix=new THREE.Matrix4();
-  private readonly outlineScale=new THREE.Vector3(1.065,1.065,1.065);
+  private readonly outlineScale=new THREE.Vector3(1.032,1.032,1.032);
   private visible=true;
+  private lowQuality=false;
 
   constructor(scene:THREE.Object3D,private readonly maxCount:number,definitions:readonly CharacterDefinition[]){
     const definition=definitions[0]??NORMAL_CHARACTER;
@@ -124,21 +125,21 @@ export class ProceduralCharacterRenderer{
     this.palettes={normal:makePalette(this.definitions.normal),heavy:makePalette(this.definitions.heavy),runner:makePalette(this.definitions.runner),knight:makePalette(this.definitions.knight),ranged:makePalette(this.definitions.ranged),boss:makePalette(this.definitions.boss)};
     const gradient=toonGradient();
     const materials={
-      primary:toonMaterial(0xffffff,gradient,0x071a55),secondary:toonMaterial(0xffffff,gradient),
+      primary:toonMaterial(0xffffff,gradient),secondary:toonMaterial(0xffffff,gradient),
       skin:toonMaterial(0xffffff,gradient),dark:toonMaterial(0xffffff,gradient),metal:toonMaterial(0xffffff,gradient),
-      accent:toonMaterial(0xffffff,gradient,0x184050)
+      accent:toonMaterial(0xffffff,gradient,0x152d32)
     };
     this.root.add(this.body,this.head,this.leftArmPivot,this.rightArmPivot,this.leftLegPivot,this.rightLegPivot);
     this.rightArmPivot.add(this.equipmentRoot);this.equipmentRoot.add(this.trailNode);
     const add=(node:THREE.Object3D,geometry:THREE.BufferGeometry,color:Part['color'],outline=false)=>{
       const mesh=new THREE.InstancedMesh(geometry,materials[color],maxCount);mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.frustumCulled=false;mesh.castShadow=true;
       let outlineMesh:THREE.InstancedMesh|undefined;
-      if(outline){outlineMesh=new THREE.InstancedMesh(geometry,new THREE.MeshBasicMaterial({color:0x081126,side:THREE.BackSide}),maxCount);outlineMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);outlineMesh.frustumCulled=false;scene.add(outlineMesh)}
+      if(outline){outlineMesh=new THREE.InstancedMesh(geometry,new THREE.MeshBasicMaterial({color:0x172238,side:THREE.BackSide,transparent:true,opacity:.48,depthWrite:false}),maxCount);outlineMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);outlineMesh.frustumCulled=false;scene.add(outlineMesh)}
       scene.add(mesh);this.parts.push({node,mesh,outline:outlineMesh,color});
     };
-    add(this.body,new THREE.CapsuleGeometry(.29,.38,4,8),'primary',true);
+    add(this.body,new THREE.CapsuleGeometry(.29,.38,4,8),'secondary',true);
     const belt=new THREE.Object3D();belt.position.y=-.14;this.body.add(belt);add(belt,new THREE.CylinderGeometry(.31,.31,.11,10),'dark');
-    const chest=new THREE.Object3D();chest.position.set(0,.12,.255);this.body.add(chest);add(chest,new THREE.BoxGeometry(.39,.2,.08),'secondary');
+    const chest=new THREE.Object3D();chest.position.set(0,.12,.255);this.body.add(chest);add(chest,new THREE.BoxGeometry(.39,.2,.08),'primary');
     add(this.head,new THREE.SphereGeometry(.285,10,7),'skin',true);
     const helmet=new THREE.Object3D();helmet.position.y=.085;this.head.add(helmet);add(helmet,new THREE.SphereGeometry(.31,10,7,0,Math.PI*2,0,Math.PI*.58),'primary',true);
     const brim=new THREE.Object3D();brim.position.set(0,.03,.03);this.head.add(brim);add(brim,new THREE.CylinderGeometry(.345,.345,.075,10),'secondary');
@@ -147,10 +148,10 @@ export class ProceduralCharacterRenderer{
     this.makeArm(this.leftArmPivot,-1,add);this.makeArm(this.rightArmPivot,1,add);
     this.makeLeg(this.leftLegPivot,-1,add);this.makeLeg(this.rightLegPivot,1,add);
     this.leftShoulder.position.set(-.37,.16,0);this.rightShoulder.position.set(.37,.16,0);this.body.add(this.leftShoulder,this.rightShoulder);
-    add(this.leftShoulder,new THREE.SphereGeometry(.15,7,5),'secondary',true);add(this.rightShoulder,new THREE.SphereGeometry(.15,7,5),'secondary',true);
+    add(this.leftShoulder,new THREE.SphereGeometry(.15,7,5),'primary',true);add(this.rightShoulder,new THREE.SphereGeometry(.15,7,5),'primary',true);
     const guard=new THREE.Object3D();guard.position.set(0,-.51,.11);this.equipmentRoot.add(guard);add(guard,new THREE.BoxGeometry(.31,.07,.08),'accent');
     const blade=new THREE.Object3D();blade.position.set(0,-.73,.16);blade.rotation.x=-.18;this.equipmentRoot.add(blade);add(blade,new THREE.BoxGeometry(.075,.52,.075),'metal',true);
-    this.shadow=new THREE.InstancedMesh(new THREE.CircleGeometry(.38,14),new THREE.MeshBasicMaterial({color:0x071020,transparent:true,opacity:.28,depthWrite:false}),maxCount);
+    this.shadow=new THREE.InstancedMesh(new THREE.CircleGeometry(.52,20),new THREE.MeshBasicMaterial({color:0x3a3440,transparent:true,opacity:.2,depthWrite:false}),maxCount);
     this.shadow.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.shadow.frustumCulled=false;scene.add(this.shadow);
     this.swordTrail=new THREE.InstancedMesh(new THREE.TorusGeometry(.46,.055,4,18,Math.PI*.86),new THREE.MeshBasicMaterial({color:0x8defff,transparent:true,opacity:.78,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),maxCount);
     this.swordTrail.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.swordTrail.frustumCulled=false;scene.add(this.swordTrail);
@@ -166,7 +167,9 @@ export class ProceduralCharacterRenderer{
     const foot=new THREE.Object3D();foot.position.set(0,-.4,.085);pivot.add(foot);add(foot,new THREE.BoxGeometry(.19,.13,.3),'secondary');
   }
 
-  setVisible(visible:boolean){this.visible=visible;for(const p of this.parts){p.mesh.visible=visible;if(p.outline)p.outline.visible=visible}this.shadow.visible=visible;this.swordTrail.visible=visible}
+  setVisible(visible:boolean){this.visible=visible;for(const p of this.parts){p.mesh.visible=visible;if(p.outline)p.outline.visible=visible&&!this.lowQuality}this.shadow.visible=visible;this.swordTrail.visible=visible}
+
+  setLowQuality(lowQuality:boolean){this.lowQuality=lowQuality;for(const part of this.parts)if(part.outline)part.outline.visible=this.visible&&!lowQuality}
 
   spawnDeath(pose:CharacterPose){if(!this.visible)return;if(this.deaths.length>=32)this.deaths.shift();this.deaths.push({...pose,life:.58,vx:-Math.sin(pose.facing)*1.4,vz:-Math.cos(pose.facing)*1.4})}
 
@@ -194,11 +197,11 @@ export class ProceduralCharacterRenderer{
       this.leftShoulder.scale.setScalar(definition.shoulderScale);this.rightShoulder.scale.setScalar(definition.shoulderScale);this.crest.scale.set(definition.crestScale,definition.crestScale,definition.crestScale);
       const hasSword=definition.equipment==='sword';this.equipmentRoot.scale.setScalar(hasSword?1:0);this.equipmentRoot.rotation.set(-attack*.45,0,attack*.25);this.trailNode.position.set(0,-.5,.14);
       this.root.updateMatrixWorld(true);
-      for(const part of this.parts){part.mesh.setMatrixAt(i,part.node.matrixWorld);part.mesh.setColorAt(i,pose.hit>0?this.white:palette[part.color]);if(part.outline){this.outlineMatrix.copy(part.node.matrixWorld).scale(this.outlineScale);part.outline.setMatrixAt(i,this.outlineMatrix)}}
-      this.shadowDummy.position.set(pose.x,.015,pose.z);this.shadowDummy.rotation.set(-Math.PI/2,0,0);this.shadowDummy.scale.set(1-death*.5,.62-death*.3,1);this.shadowDummy.updateMatrix();this.shadow.setMatrixAt(i,this.shadowDummy.matrix);
+      for(const part of this.parts){part.mesh.setMatrixAt(i,part.node.matrixWorld);part.mesh.setColorAt(i,pose.hit>0?this.white:palette[part.color]);if(part.outline&&!this.lowQuality){this.outlineMatrix.copy(part.node.matrixWorld).scale(this.outlineScale);part.outline.setMatrixAt(i,this.outlineMatrix)}}
+      this.shadowDummy.position.set(pose.x,.012,pose.z);this.shadowDummy.rotation.set(-Math.PI/2,0,0);this.shadowDummy.scale.set((1-death*.5)*definition.width*pose.scale,(1-death*.5)*.62*pose.scale,1);this.shadowDummy.updateMatrix();this.shadow.setMatrixAt(i,this.shadowDummy.matrix);
       if(pose.attack>0&&!death&&hasSword){this.trailDummy.position.set(pose.x+Math.sin(pose.facing)*.33,1.04,pose.z+Math.cos(pose.facing)*.33);this.trailDummy.rotation.set(Math.PI/2,pose.facing,-.65+attackT*1.3);this.trailDummy.scale.setScalar(.8+attack*.25);this.trailDummy.updateMatrix();this.swordTrail.setMatrixAt(trailCount++,this.trailDummy.matrix)}
     }
-    for(const part of this.parts){part.mesh.count=total;part.mesh.instanceMatrix.needsUpdate=true;if(part.mesh.instanceColor)part.mesh.instanceColor.needsUpdate=true;if(part.outline){part.outline.count=total;part.outline.instanceMatrix.needsUpdate=true}}
+    for(const part of this.parts){part.mesh.count=total;part.mesh.instanceMatrix.needsUpdate=true;if(part.mesh.instanceColor)part.mesh.instanceColor.needsUpdate=true;if(part.outline&&!this.lowQuality){part.outline.count=total;part.outline.instanceMatrix.needsUpdate=true}}
     this.shadow.count=total;this.shadow.instanceMatrix.needsUpdate=true;this.swordTrail.count=trailCount;this.swordTrail.instanceMatrix.needsUpdate=true;
   }
 }
