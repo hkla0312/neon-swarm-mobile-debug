@@ -32,6 +32,7 @@ export type CharacterPose={
   hit:number;
   phase:number;
   archetype:CharacterArchetype;
+  scale:number;
 };
 
 type DeathPose=CharacterPose&{life:number;vx:number;vz:number};
@@ -68,6 +69,15 @@ export const RANGED_CHARACTER:CharacterDefinition={
 };
 
 export const CHARACTER_DEFINITIONS=[NORMAL_CHARACTER,HEAVY_CHARACTER,RUNNER_CHARACTER,KNIGHT_CHARACTER,RANGED_CHARACTER] as const;
+
+const enemyDefinition=(source:CharacterDefinition,primaryColor:number,secondaryColor:number,accentColor:number):CharacterDefinition=>({...source,primaryColor,secondaryColor,accentColor});
+export const ENEMY_CHARACTER_DEFINITIONS=[
+  enemyDefinition(NORMAL_CHARACTER,0xf05252,0x9e263d,0xffcf72),
+  enemyDefinition(HEAVY_CHARACTER,0xb82f38,0x5c1828,0xff9b55),
+  enemyDefinition(RUNNER_CHARACTER,0xff7654,0xb52a35,0xffe08c),
+  enemyDefinition(KNIGHT_CHARACTER,0x9e2443,0x4b172d,0xffb35f),
+  enemyDefinition(RANGED_CHARACTER,0xd74776,0x70244c,0xffd479)
+] as const;
 
 function toonGradient(){
   const data=new Uint8Array([55,55,55,145,145,145,215,215,215,255,255,255]);
@@ -171,7 +181,7 @@ export class ProceduralCharacterRenderer{
       const attackT=pose.attack>0?1-pose.attack/.18:0,attack=Math.sin(Math.max(0,Math.min(1,attackT))*Math.PI),hit=Math.min(1,pose.hit*7);
       const spawnScale=pose.spawn>0?.75+Math.sin((.5-pose.spawn)/.5*Math.PI)*.25:1,deathScale=1-death*.46;
       this.root.position.set(pose.x-Math.sin(pose.facing)*hit*.18,.92+bounce+death*.08,pose.z-Math.cos(pose.facing)*hit*.18);
-      this.root.rotation.set(-definition.lean*speed,pose.facing,death*1.2);const baseScale=spawnScale*deathScale;this.root.scale.set(definition.width*baseScale,definition.height*baseScale,definition.width*baseScale);
+      this.root.rotation.set(-definition.lean*speed,pose.facing,death*1.2);const baseScale=spawnScale*deathScale*pose.scale;this.root.scale.set(definition.width*baseScale,definition.height*baseScale,definition.width*baseScale);
       this.body.scale.copy(definition.bodyScale);this.body.rotation.z=Math.sin(time*2.4+pose.phase)*(definition.archetype==='heavy'?.014:.025);
       this.head.position.set(0,.48+(definition.legScale-1)*.04,0);this.head.scale.setScalar(definition.headScale);this.head.rotation.y=Math.sin(time*1.7+pose.phase)*.045;
       this.leftArmPivot.scale.setScalar(definition.armScale);this.rightArmPivot.scale.setScalar(definition.armScale);this.leftLegPivot.scale.setScalar(definition.legScale);this.rightLegPivot.scale.setScalar(definition.legScale);
